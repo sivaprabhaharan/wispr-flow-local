@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wispr-flow-local"
+version = "0.1.0"
+description = "Offline privacy-first system-wide voice-to-text for Windows"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "faster-whisper==1.2.1",
+    "sounddevice==0.5.5",
+    "pynput==1.8.1",
+    "pyautogui==0.9.54",
+    "pystray==0.19.5",
+    "Pillow==12.2.0",
+    "pyperclip==1.11.0",
+    "numpy==2.4.4",
+]
+
+[project.scripts]
+wispr-flow-local = "main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*.py"]
+
+[tool.setuptools.package-data]
+"*" = ["models/**/*"]
