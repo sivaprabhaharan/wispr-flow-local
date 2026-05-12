@@ -15,7 +15,7 @@ import tkinter as tk
 from audio import AudioCapture, MicrophoneError
 from config import MODEL_DIR
 from hotkey import HotkeyListener, HotkeyRegistrationError
-from injector import TextInjector
+from injector import InjectionError, TextInjector
 from overlay import Overlay
 from postprocessor import PostProcessor
 from silence import SilenceDetector
@@ -197,6 +197,8 @@ class App:
     # ------------------------------------------------------------------
 
     def _on_recording_stopped(self) -> None:
+        if self._shutdown_event.is_set():
+            return
         if self._state.state != AppState.RECORDING:
             return
         self._state.transition_to_processing()
@@ -219,9 +221,16 @@ class App:
             if raw:
                 clean = self._post.process(raw)
                 logger.info("Transcript (clean): %r", clean)
-                success = self._injector.inject(clean)
-                if not success:
-                    logger.info("Used clipboard fallback for injection")
+                try:
+                    success = self._injector.inject(clean)
+                    if not success:
+                        logger.info("Used clipboard fallback for injection")
+                except InjectionError:
+                    logger.warning("Text injection failed — both SendInput and clipboard exhausted")
+                    self._tray.notify(
+                        "Wispr Flow Local",
+                        "Text could not be inserted — target window may be read-only.",
+                    )
         except Exception as exc:
             logger.exception("Transcription/injection error")
             self._tray.notify("Wispr Flow Local", f"Transcription failed: {exc}")

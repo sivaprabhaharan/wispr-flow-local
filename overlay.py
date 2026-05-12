@@ -64,9 +64,8 @@ class Overlay:
         win.wm_attributes("-topmost", True)
         win.wm_attributes("-alpha", 0.85)
         win.configure(bg=_BG)
-        win.focus_set()  # tkinter needs this to receive events, but we avoid steal
-        win.focus_force()
-        # don't steal focus from other windows
+        # Never call focus_set() or focus_force() — the overlay must not steal focus
+        # from the window the user is about to dictate into.
         win.wm_attributes("-toolwindow", True)
         return win
 

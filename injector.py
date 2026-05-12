@@ -15,6 +15,10 @@ KEYEVENTF_UNICODE = 0x0004
 KEYEVENTF_KEYUP = 0x0002
 
 
+class InjectionError(Exception):
+    """Raised when both SendInput and clipboard paste fail."""
+
+
 class KEYBDINPUT(ctypes.Structure):
     _fields_ = [
         ("wVk", ctypes.wintypes.WORD),
@@ -41,15 +45,19 @@ class TextInjector:
     """
 
     def inject(self, text: str) -> bool:
-        """Inject ``text`` at the current cursor. Returns True if primary path used."""
+        """Inject ``text`` at the current cursor. Returns True if primary path used.
+
+        Raises InjectionError if both SendInput and clipboard paste fail.
+        """
         if not text:
             return True
         if self._send_input(text):
             logger.debug("TextInjector: SendInput succeeded")
             return True
         logger.info("TextInjector: SendInput failed, using clipboard fallback")
-        self._clipboard_paste(text)
-        return False
+        if self._clipboard_paste(text):
+            return False
+        raise InjectionError("Both SendInput and clipboard paste failed")
 
     def _send_input(self, text: str) -> bool:
         """Send each character via SendInput KEYEVENTF_UNICODE. Returns success."""
@@ -88,20 +96,30 @@ class TextInjector:
             logger.exception("SendInput error")
             return False
 
-    def _clipboard_paste(self, text: str) -> None:
-        """Write text to clipboard, send Ctrl+V, then restore previous contents."""
+    def _clipboard_paste(self, text: str) -> bool:
+        """Write text to clipboard, send Ctrl+V, then restore previous contents.
+
+        Returns True if the paste likely succeeded, False otherwise.
+        """
         try:
             previous = pyperclip.paste()
         except Exception:
             previous = ""
+        success = False
         try:
             pyperclip.copy(text)
             time.sleep(0.05)
             self._send_ctrl_v()
             time.sleep(0.5)
-            pyperclip.copy(previous)
+            success = True
         except Exception:
             logger.exception("Clipboard paste error")
+        finally:
+            try:
+                pyperclip.copy(previous)
+            except Exception:
+                logger.warning("Failed to restore clipboard after paste")
+        return success
 
     def _send_ctrl_v(self) -> None:
         """Send Ctrl+V via SendInput."""

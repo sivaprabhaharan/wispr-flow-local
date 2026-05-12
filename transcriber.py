@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from config import WHISPER_COMPUTE, WHISPER_DEVICE, WHISPER_MODEL
+from config import MODEL_DIR, WHISPER_COMPUTE, WHISPER_DEVICE, WHISPER_MODEL
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class Transcriber:
         """Load the faster-whisper model. Blocks for ~2–5 s on first call."""
         from faster_whisper import WhisperModel  # deferred import for startup perf
 
-        model_path = str(Path(__file__).parent / "models" / WHISPER_MODEL)
+        model_path = str(Path(__file__).parent / MODEL_DIR / WHISPER_MODEL)
         if not Path(model_path).exists():
             # Fall back to downloading by name (requires network on first run)
             model_path = WHISPER_MODEL
