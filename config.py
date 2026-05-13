@@ -1,6 +1,6 @@
 """Configuration constants — single source of truth for Wispr Flow Local."""
 
-HOTKEY = "<alt>+<space>"
+HOTKEY = "<ctrl>+<space>"
 
 SAMPLE_RATE = 16_000          # Hz — faster-whisper expects 16 kHz
 CHANNELS = 1                  # Mono

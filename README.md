@@ -2,7 +2,7 @@
 
 A fully offline, privacy-first, system-wide voice-to-text daemon for Windows.
 
-Hold **Alt+Space** to record, release to transcribe. Text is inserted at the active cursor — no cloud, no clipboard contamination, no telemetry.
+Hold **Ctrl+Space** to record, release to transcribe. Text is inserted at the active cursor — no cloud, no clipboard contamination, no telemetry.
 
 ## Requirements
 
@@ -66,8 +66,8 @@ A green circle appears in the system tray confirming the app is running and the 
 
 | Action | Result |
 |--------|--------|
-| Hold **Alt+Space** | Recording starts — a red dot overlay appears on screen |
-| Release **Alt+Space** | Recording stops; transcription begins (yellow overlay) |
+| Hold **Ctrl+Space** | Recording starts — a red dot overlay appears on screen |
+| Release **Ctrl+Space** | Recording stops; transcription begins (yellow overlay) |
 | 4 seconds of silence | Recording auto-stops even if hotkey is still held |
 | 120 seconds elapsed | Hard cap — recording stops automatically |
 | Overlay disappears | Transcribed text has been injected at the cursor |
