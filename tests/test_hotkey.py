@@ -17,103 +17,108 @@ from hotkey import HotkeyListener, HotkeyRegistrationError, _PressReleaseListene
 # ---------------------------------------------------------------------------
 
 class TestPressReleaseListener:
-    """Tests for _PressReleaseListener using the mocked keyboard module."""
+    """Tests for _PressReleaseListener using Ctrl+Space (current config)."""
 
     def setup_method(self):
         self.on_press_cb = MagicMock()
         self.on_release_cb = MagicMock()
-        # Patch keyboard.Listener to avoid actual input hook
         with patch("hotkey.keyboard.Listener"):
             self.listener = _PressReleaseListener(
-                hotkey_str="<alt>+<space>",
+                hotkey_str="<ctrl>+<space>",
                 on_press_cb=self.on_press_cb,
                 on_release_cb=self.on_release_cb,
             )
 
-    def _press_alt(self):
-        self.listener._on_press(keyboard_mock.Key.alt)
+    def _press_ctrl(self):
+        self.listener._on_press(keyboard_mock.Key.ctrl)
 
     def _press_space(self):
         self.listener._on_press(keyboard_mock.Key.space)
 
-    def _release_alt(self):
-        self.listener._on_release(keyboard_mock.Key.alt)
+    def _release_ctrl(self):
+        self.listener._on_release(keyboard_mock.Key.ctrl)
 
     def _release_space(self):
         self.listener._on_release(keyboard_mock.Key.space)
 
-    def test_alt_then_space_triggers_on_press(self):
-        self._press_alt()
+    def test_ctrl_then_space_triggers_on_press(self):
+        self._press_ctrl()
         self._press_space()
         self.on_press_cb.assert_called_once()
 
-    def test_space_without_alt_does_not_trigger(self):
+    def test_space_without_ctrl_does_not_trigger(self):
         self._press_space()
         self.on_press_cb.assert_not_called()
 
-    def test_alt_without_space_does_not_trigger(self):
-        self._press_alt()
+    def test_ctrl_without_space_does_not_trigger(self):
+        self._press_ctrl()
         self.on_press_cb.assert_not_called()
 
     def test_trigger_only_fires_once_while_held(self):
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         # Simulate key repeat (press again while held)
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         self.on_press_cb.assert_called_once()
 
-    def test_release_alt_fires_on_release_cb(self):
-        self._press_alt()
+    def test_release_ctrl_fires_on_release_cb(self):
+        self._press_ctrl()
         self._press_space()
-        self._release_alt()
+        self._release_ctrl()
         self.on_release_cb.assert_called_once()
 
     def test_release_space_fires_on_release_cb(self):
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         self._release_space()
         self.on_release_cb.assert_called_once()
 
     def test_on_release_not_called_if_never_triggered(self):
-        self._release_alt()
+        self._release_ctrl()
         self.on_release_cb.assert_not_called()
 
-    def test_alt_l_triggers_hotkey(self):
-        self.listener._on_press(keyboard_mock.Key.alt_l)
+    def test_ctrl_l_triggers_hotkey(self):
+        self.listener._on_press(keyboard_mock.Key.ctrl_l)
         self._press_space()
         self.on_press_cb.assert_called_once()
 
-    def test_alt_r_triggers_hotkey(self):
-        self.listener._on_press(keyboard_mock.Key.alt_r)
+    def test_ctrl_r_triggers_hotkey(self):
+        self.listener._on_press(keyboard_mock.Key.ctrl_r)
         self._press_space()
         self.on_press_cb.assert_called_once()
 
     def test_triggered_resets_after_release_so_second_press_works(self):
         # First activation
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         self.on_press_cb.assert_called_once()
         # Release
-        self._release_alt()
+        self._release_ctrl()
         self.on_release_cb.assert_called_once()
         # Second activation
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         assert self.on_press_cb.call_count == 2
 
     def test_exception_in_press_cb_does_not_propagate(self):
         self.on_press_cb.side_effect = RuntimeError("boom")
         # Should not raise
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
 
     def test_exception_in_release_cb_does_not_propagate(self):
         self.on_release_cb.side_effect = RuntimeError("boom")
-        self._press_alt()
+        self._press_ctrl()
         self._press_space()
         # Should not raise
         self._release_space()
+
+    def test_alt_space_does_not_trigger_ctrl_space(self):
+        """Regression: old hardcoded Alt+Space must not fire for Ctrl+Space config."""
+        self.listener._on_press(keyboard_mock.Key.alt)
+        self._press_space()
+        self.on_press_cb.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

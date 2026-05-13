@@ -13,7 +13,7 @@ import threading
 import tkinter as tk
 
 from audio import AudioCapture, MicrophoneError
-from config import MODEL_DIR
+from config import HOTKEY, MODEL_DIR
 from hotkey import HotkeyListener, HotkeyRegistrationError
 from injector import InjectionError, TextInjector
 from overlay import Overlay
@@ -134,7 +134,7 @@ class App:
             logger.error("Hotkey registration failed: %s", exc)
             self._tray.notify(
                 "Wispr Flow Local",
-                "Hotkey Alt+Space could not be registered — may conflict with another app.",
+                f"Hotkey {HOTKEY} could not be registered — may conflict with another app.",
             )
 
     # ------------------------------------------------------------------

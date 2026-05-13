@@ -10,6 +10,64 @@ from config import HOTKEY
 
 logger = logging.getLogger(__name__)
 
+# Map pynput modifier key names to the set of Key objects that represent them
+_MODIFIER_MAP: dict[str, tuple] = {
+    "ctrl":  (keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r),
+    "alt":   (keyboard.Key.alt,  keyboard.Key.alt_l,  keyboard.Key.alt_r),
+    "shift": (keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r),
+    "cmd":   (keyboard.Key.cmd,  keyboard.Key.cmd_l,  keyboard.Key.cmd_r),
+    "super": (keyboard.Key.cmd,  keyboard.Key.cmd_l,  keyboard.Key.cmd_r),
+}
+
+# Map special key names to pynput Key enum values
+_SPECIAL_KEY_MAP: dict[str, keyboard.Key] = {
+    "space":  keyboard.Key.space,
+    "tab":    keyboard.Key.tab,
+    "enter":  keyboard.Key.enter,
+    "esc":    keyboard.Key.esc,
+    "delete": keyboard.Key.delete,
+    "backspace": keyboard.Key.backspace,
+}
+
+
+def _parse_hotkey(hotkey_str: str) -> tuple[list[tuple], keyboard.Key | keyboard.KeyCode]:
+    """Parse a hotkey string like '<ctrl>+<space>' into (modifier_groups, trigger_key).
+
+    Returns:
+        modifier_groups: list of tuples, each containing the Key variants for one modifier
+        trigger_key: the final (non-modifier) key
+    Raises:
+        ValueError: if the hotkey string is malformed or unrecognised
+    """
+    parts = [p.strip("<>").lower() for p in hotkey_str.split("+")]
+    if len(parts) < 2:
+        raise ValueError(f"Hotkey must have at least one modifier and one key: {hotkey_str!r}")
+
+    modifier_groups: list[tuple] = []
+    trigger_key = None
+
+    for part in parts:
+        if part in _MODIFIER_MAP:
+            modifier_groups.append(_MODIFIER_MAP[part])
+        elif part in _SPECIAL_KEY_MAP:
+            trigger_key = _SPECIAL_KEY_MAP[part]
+        elif len(part) == 1:
+            trigger_key = keyboard.KeyCode.from_char(part)
+        else:
+            # Try matching a named pynput Key (e.g. "f1", "home")
+            pynput_key = getattr(keyboard.Key, part, None)
+            if pynput_key is not None:
+                trigger_key = pynput_key
+            else:
+                raise ValueError(f"Unrecognised key in hotkey string: {part!r}")
+
+    if trigger_key is None:
+        raise ValueError(f"No trigger key found in hotkey string: {hotkey_str!r}")
+    if not modifier_groups:
+        raise ValueError(f"No modifier keys found in hotkey string: {hotkey_str!r}")
+
+    return modifier_groups, trigger_key
+
 
 class HotkeyRegistrationError(Exception):
     pass
@@ -26,14 +84,12 @@ class HotkeyListener:
     def __init__(self, on_press: Callable, on_release: Callable) -> None:
         self._on_press = on_press
         self._on_release = on_release
-        self._listener: keyboard.GlobalHotKeys | None = None
+        self._listener: _PressReleaseListener | None = None
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Spawn the daemon thread and register the hotkey."""
         try:
-            # pynput GlobalHotKeys supports on_activate but not separate
-            # press/release. We use Listener instead to capture key state.
             self._listener = _PressReleaseListener(
                 hotkey_str=HOTKEY,
                 on_press_cb=self._on_press,
@@ -60,7 +116,11 @@ class HotkeyListener:
 
 
 class _PressReleaseListener:
-    """Internal: bridges pynput Listener to press/release callbacks for Alt+Space."""
+    """Internal: drives pynput Listener and fires callbacks when the configured hotkey
+    is held (on_press_cb) and released (on_release_cb).
+
+    Parses HOTKEY dynamically so any modifier+key combo works without code changes.
+    """
 
     def __init__(
         self,
@@ -70,9 +130,13 @@ class _PressReleaseListener:
     ) -> None:
         self._on_press_cb = on_press_cb
         self._on_release_cb = on_release_cb
-        self._alt_held = False
-        self._space_held = False
         self._triggered = False
+
+        self._modifier_groups, self._trigger_key = _parse_hotkey(hotkey_str)
+        # Track held state per modifier group and for the trigger key
+        self._mods_held: list[bool] = [False] * len(self._modifier_groups)
+        self._trigger_held = False
+
         self._listener = keyboard.Listener(
             on_press=self._on_press,
             on_release=self._on_release,
@@ -87,12 +151,14 @@ class _PressReleaseListener:
 
     def _on_press(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         try:
-            if key in (keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r):
-                self._alt_held = True
-            elif key == keyboard.Key.space:
-                self._space_held = True
+            for i, group in enumerate(self._modifier_groups):
+                if key in group:
+                    self._mods_held[i] = True
 
-            if self._alt_held and self._space_held and not self._triggered:
+            if key == self._trigger_key:
+                self._trigger_held = True
+
+            if all(self._mods_held) and self._trigger_held and not self._triggered:
                 self._triggered = True
                 self._on_press_cb()
         except Exception:
@@ -100,12 +166,14 @@ class _PressReleaseListener:
 
     def _on_release(self, key: keyboard.Key | keyboard.KeyCode | None) -> None:
         try:
-            if key in (keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r):
-                self._alt_held = False
-            elif key == keyboard.Key.space:
-                self._space_held = False
+            for i, group in enumerate(self._modifier_groups):
+                if key in group:
+                    self._mods_held[i] = False
 
-            if self._triggered and (not self._alt_held or not self._space_held):
+            if key == self._trigger_key:
+                self._trigger_held = False
+
+            if self._triggered and (not all(self._mods_held) or not self._trigger_held):
                 self._triggered = False
                 self._on_release_cb()
         except Exception:

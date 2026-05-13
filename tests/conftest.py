@@ -54,10 +54,19 @@ sys.modules.setdefault("pyperclip", _pyperclip_mock)
 _pynput_mock = MagicMock()
 _keyboard_mock = MagicMock()
 # Concrete Key values used in hotkey.py comparisons
+_keyboard_mock.Key.ctrl = "ctrl"
+_keyboard_mock.Key.ctrl_l = "ctrl_l"
+_keyboard_mock.Key.ctrl_r = "ctrl_r"
 _keyboard_mock.Key.alt = "alt"
 _keyboard_mock.Key.alt_l = "alt_l"
 _keyboard_mock.Key.alt_r = "alt_r"
 _keyboard_mock.Key.space = "space"
+_keyboard_mock.Key.shift = "shift"
+_keyboard_mock.Key.shift_l = "shift_l"
+_keyboard_mock.Key.shift_r = "shift_r"
+_keyboard_mock.Key.cmd = "cmd"
+_keyboard_mock.Key.cmd_l = "cmd_l"
+_keyboard_mock.Key.cmd_r = "cmd_r"
 sys.modules.setdefault("pynput", _pynput_mock)
 sys.modules.setdefault("pynput.keyboard", _keyboard_mock)
 
