@@ -1,0 +1,55 @@
+Text that notepad rendered
+
+Hopefully this      it should ...........Why ????????????????????????????????????????????????????????????With ttt .....................logs ....................Did ??????????????????????????????????Could I say lobs?
+
+Logs I see from the app -
+
+c:\Code\wispr-flow-local\wispr-flow-local>python main.py
+INFO __main__: Wispr Flow Local starting…
+INFO tray: TrayIcon started
+INFO transcriber: Bundled model not found at c:\Code\wispr-flow-local\wispr-flow-local\models\base — downloading 'base' from HuggingFace (~150 MB, first run only)…
+INFO transcriber: Loading Whisper model 'base' (cpu int8)…
+INFO transcriber: Whisper model loaded
+INFO __main__: Model loaded; activating hotkey
+INFO hotkey: Hotkey listener started (<ctrl>+<space>)
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:02.700
+INFO __main__: Transcript (raw): 'Hopefully this time it should be wealthy.'
+INFO __main__: Transcript (clean): 'Hopefully this time it should be wealthy.'
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:05.300
+INFO __main__: Transcript (raw): "Why do we see multiple dots it's kind of bugged can we fix this?"
+INFO __main__: Transcript (clean): "Why do we see multiple dots it's kind of bugged can we fix this?"
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:04.400
+INFO __main__: Transcript (raw): 'With the large question marks different from what I see from the locks.'
+INFO __main__: Transcript (clean): 'With the large question marks different from what I see from the locks.'
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:03.700
+INFO __main__: Transcript (raw): 'logs or logs, crazy logs'
+INFO __main__: Transcript (clean): 'logs or logs, crazy logs.'
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:03.900
+INFO __main__: Transcript (raw): 'Did I say logs for detecting properly?'
+INFO __main__: Transcript (clean): 'Did I say logs for detecting properly?'
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:02.200
+INFO __main__: Transcript (raw): 'Could I say lobs?'
+INFO __main__: Transcript (clean): 'Could I say lobs?'
+INFO __main__: Hotkey pressed — starting recording
+INFO audio: AudioCapture: microphone stream started
+INFO __main__: Hotkey released — stopping recording
+INFO faster_whisper: Processing audio with duration 00:02.200
+INFO __main__: Transcript (raw): ''
