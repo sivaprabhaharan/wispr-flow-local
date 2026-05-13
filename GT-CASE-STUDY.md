@@ -138,7 +138,7 @@ Before we could run a single formula, we had to get GT running. This took longer
 
 GT is built in Go and requires Dolt (a SQL database for structured state) and `beads` for issue tracking. Installing these on Windows was straightforward. Building GT from source (`go build ./cmd/gt`) worked first time.
 
-But running the full stack on Windows revealed friction: shell path assumptions, line ending issues, and most critically — the corporate TLS interceptor (PwC's proxy strips and re-signs all HTTPS traffic). Every `gh` CLI call, every `copilot` API request, every Go module download needed the corporate CA certificate injected.
+But running the full stack on Windows revealed friction: shell path assumptions, line ending issues, and most critically — a corporate TLS interceptor that strips and re-signs all HTTPS traffic. Every `gh` CLI call, every `copilot` API request, every Go module download needed the corporate CA certificate injected into the trust store.
 
 **Second attempt: Docker**
 
@@ -172,7 +172,7 @@ Do you trust the files in this folder?
 This dialog blocks the agent — it can't proceed until a human clicks through. We handled it by sending keystrokes to the tmux pane:
 
 ```bash
-tmux -L gt-82deb2 send-keys -t wfl-obsidian Down Enter
+tmux -L <gt-socket> send-keys -t wfl-obsidian Down Enter
 # "Down" selects option 2 (remember), "Enter" confirms
 ```
 
@@ -450,7 +450,7 @@ gt sling <prd-bead> wispr_flow_local --agent copilot -a "Product idea: ..."
 gt sling <bead-id> wispr_flow_local --force --agent copilot -a "<instructions>"
 
 # Accept polecat trust prompt
-tmux -L gt-82deb2 send-keys -t wfl-<polecat> Down Enter
+tmux -L <gt-socket> send-keys -t wfl-<polecat> Down Enter
 
 # Check bead status
 bd show <bead-id>
@@ -463,7 +463,7 @@ gt mq list wispr_flow_local
 gt mq post-merge wispr_flow_local <mr-id>
 
 # Check polecat output
-tmux -L gt-82deb2 capture-pane -t wfl-obsidian -p -S -100
+tmux -L <gt-socket> capture-pane -t wfl-obsidian -p -S -100
 ```
 
 ---
