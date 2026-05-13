@@ -31,9 +31,11 @@ Or install as a package (adds the `wispr-flow-local` console script):
 pip install -e .
 ```
 
-### 3. Place the Whisper model
+### 3. Place the Whisper model (optional)
 
-Put the `faster-whisper` `base` model files in `models/base/`:
+On first run, the app **automatically downloads** the `base` Whisper model from HuggingFace (~150 MB). This requires a one-time internet connection and takes 1–5 minutes depending on your connection speed.
+
+Alternatively, place pre-downloaded `faster-whisper` `base` model files in `models/base/` to skip the download:
 
 ```
 models/
@@ -44,7 +46,7 @@ models/
     └── vocabulary.txt
 ```
 
-If no bundled model is present the model is downloaded automatically on first run (requires a one-time network connection; ~150 MB).
+Download manually from: https://huggingface.co/Systran/faster-whisper-base/tree/main
 
 ## Running
 

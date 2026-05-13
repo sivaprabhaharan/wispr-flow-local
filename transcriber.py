@@ -21,23 +21,41 @@ class Transcriber:
         self._model = None
 
     def load_model(self) -> None:
-        """Load the faster-whisper model. Blocks for ~2–5 s on first call."""
+        """Load the faster-whisper model. Blocks for ~2–5 s on first call.
+
+        Checks for a bundled model in models/<name>/model.bin first.
+        Falls back to downloading from HuggingFace on first run (~150 MB).
+        Raises ``RuntimeError`` with a human-readable message on failure.
+        """
         from faster_whisper import WhisperModel  # deferred import for startup perf
 
-        model_path = str(Path(__file__).parent / MODEL_DIR / WHISPER_MODEL)
-        if not Path(model_path).exists():
-            # Fall back to downloading by name (requires network on first run)
+        local_path = Path(__file__).parent / MODEL_DIR / WHISPER_MODEL
+        model_bin = local_path / "model.bin"
+        if local_path.is_dir() and model_bin.exists():
+            model_path = str(local_path)
+            logger.info("Using bundled model at %s", local_path)
+        else:
+            # Auto-download from HuggingFace on first run (~150 MB)
             model_path = WHISPER_MODEL
-            logger.warning(
-                "Bundled model not found at %s; will attempt download", model_path
+            logger.info(
+                "Bundled model not found at %s — downloading '%s' from HuggingFace (~150 MB, first run only)…",
+                local_path, WHISPER_MODEL,
             )
 
         logger.info("Loading Whisper model '%s' (%s %s)…", WHISPER_MODEL, WHISPER_DEVICE, WHISPER_COMPUTE)
-        self._model = WhisperModel(
-            model_path,
-            device=WHISPER_DEVICE,
-            compute_type=WHISPER_COMPUTE,
-        )
+        try:
+            self._model = WhisperModel(
+                model_path,
+                device=WHISPER_DEVICE,
+                compute_type=WHISPER_COMPUTE,
+            )
+        except Exception as exc:
+            raise RuntimeError(
+                f"Failed to load Whisper model '{WHISPER_MODEL}'. "
+                "If this is your first run, the model download may have failed — "
+                "check your internet connection and try again. "
+                f"Details: {exc}"
+            ) from exc
         logger.info("Whisper model loaded")
 
     def transcribe(self, audio: np.ndarray) -> str:

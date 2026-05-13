@@ -109,13 +109,11 @@ class App:
         try:
             self._transcriber.load_model()
             self._root.after(0, self._on_model_loaded)
-        except FileNotFoundError:
-            logger.critical("Model files missing — cannot start")
-            self._root.after(0, lambda: self._fatal_error(
-                "Model files not found. Please reinstall Wispr Flow Local."
-            ))
+        except RuntimeError as exc:
+            logger.critical("Model load failed: %s", exc)
+            self._root.after(0, lambda: self._fatal_error(str(exc)))
         except Exception:
-            logger.exception("Model load failed")
+            logger.exception("Model load failed unexpectedly")
             self._root.after(0, lambda: self._fatal_error(
                 "Failed to load Whisper model. Check wispr.log for details."
             ))
