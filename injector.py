@@ -30,7 +30,12 @@ class KEYBDINPUT(ctypes.Structure):
 
 
 class _INPUT_UNION(ctypes.Union):
-    _fields_ = [("ki", KEYBDINPUT)]
+    # Pad to MOUSEINPUT size (32 bytes) so ctypes.sizeof(INPUT) == 40 on 64-bit,
+    # matching what Windows expects. Without the padding SendInput always returns 0.
+    _fields_ = [
+        ("ki", KEYBDINPUT),
+        ("_padding", ctypes.c_uint8 * 32),
+    ]
 
 
 class INPUT(ctypes.Structure):

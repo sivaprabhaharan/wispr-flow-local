@@ -6,7 +6,21 @@ from unittest.mock import MagicMock, patch, call
 
 import pytest
 
-from injector import InjectionError, TextInjector
+from injector import InjectionError, INPUT, TextInjector
+
+
+# ---------------------------------------------------------------------------
+# Struct layout
+# ---------------------------------------------------------------------------
+
+class TestInputStructSize:
+    def test_input_struct_is_40_bytes(self):
+        """ctypes.sizeof(INPUT) must equal 40 — Windows requires this on 64-bit.
+
+        Without padding _INPUT_UNION to MOUSEINPUT's 32 bytes, ctypes reports 32
+        and SendInput rejects every call (returns 0).
+        """
+        assert ctypes.sizeof(INPUT) == 40
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +115,15 @@ class TestSendInput:
             # For "hi" (2 chars × 2 events each = 4 inputs)
             mock_windll.user32.SendInput.return_value = 4
             result = inj._send_input("hi")
+            assert result is True
+
+    def test_send_input_true_when_sendinput_returns_n(self):
+        """_send_input must return True when SendInput returns exactly n inputs sent."""
+        inj = _make_injector()
+        with patch("ctypes.windll") as mock_windll:
+            # Single char → 2 events (key-down + key-up)
+            mock_windll.user32.SendInput.return_value = 2
+            result = inj._send_input("a")
             assert result is True
 
     def test_send_input_failure_when_windll_returns_wrong_count(self):
