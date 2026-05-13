@@ -1,4 +1,4 @@
-"""Text injection via SendInput (primary) with clipboard paste fallback."""
+"""Text injection via clipboard paste (primary) with SendInput fallback."""
 
 import ctypes
 import ctypes.wintypes
@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 INPUT_KEYBOARD = 1
 KEYEVENTF_UNICODE = 0x0004
 KEYEVENTF_KEYUP = 0x0002
+
+# Virtual-key codes for modifier release
+VK_CONTROL = 0x11
+VK_SPACE = 0x20
 
 
 class InjectionError(Exception):
@@ -45,29 +49,57 @@ class INPUT(ctypes.Structure):
 class TextInjector:
     """Injects text at the active cursor position.
 
-    Primary path: ``SendInput`` with ``KEYEVENTF_UNICODE`` (no clipboard touch).
-    Fallback:     clipboard write + Ctrl+V + restore previous clipboard.
+    Primary path:  clipboard write + Ctrl+V (reliable across all Windows apps).
+    Fallback:      ``SendInput`` with ``KEYEVENTF_UNICODE``.
     """
+
+    # Settling delay before SendInput injection loop to allow keyboard state to settle
+    _SETTLE_DELAY = 0.15
 
     def inject(self, text: str) -> bool:
         """Inject ``text`` at the current cursor. Returns True if primary path used.
 
-        Raises InjectionError if both SendInput and clipboard paste fail.
+        Raises InjectionError if both clipboard paste and SendInput fail.
         """
         if not text:
             return True
-        if self._send_input(text):
-            logger.debug("TextInjector: SendInput succeeded")
-            return True
-        logger.info("TextInjector: SendInput failed, using clipboard fallback")
+        self._release_modifiers()
         if self._clipboard_paste(text):
+            logger.debug("TextInjector: clipboard paste succeeded")
+            return True
+        logger.info("TextInjector: clipboard paste failed, using SendInput fallback")
+        if self._send_input(text):
             return False
-        raise InjectionError("Both SendInput and clipboard paste failed")
+        raise InjectionError("Both clipboard paste and SendInput failed")
+
+    def _release_modifiers(self) -> None:
+        """Send key-up events for Ctrl and Space to clear Windows keyboard state.
+
+        The Ctrl+Space hotkey may leave Ctrl logically held in Windows keyboard
+        state even after physical release.  Explicitly injecting key-up events
+        ensures modifiers are cleared before any text injection begins.
+        """
+        try:
+            user32 = ctypes.windll.user32
+
+            def make_keyup(vk: int) -> INPUT:
+                ki = KEYBDINPUT(wVk=vk, wScan=0, dwFlags=KEYEVENTF_KEYUP, time=0, dwExtraInfo=None)
+                return INPUT(type=INPUT_KEYBOARD, _input=_INPUT_UNION(ki=ki))
+
+            inputs = [make_keyup(VK_CONTROL), make_keyup(VK_SPACE)]
+            n = len(inputs)
+            InputArray = INPUT * n
+            arr = InputArray(*inputs)
+            user32.SendInput(n, arr, ctypes.sizeof(INPUT))
+        except Exception:
+            logger.debug("_release_modifiers: SendInput unavailable (non-Windows?)")
 
     def _send_input(self, text: str) -> bool:
         """Send each character via SendInput KEYEVENTF_UNICODE. Returns success."""
         try:
             user32 = ctypes.windll.user32
+            # Allow keyboard state to fully settle before injecting characters
+            time.sleep(self._SETTLE_DELAY)
             inputs = []
             for ch in text:
                 scan = ord(ch)
@@ -96,13 +128,17 @@ class TextInjector:
             InputArray = INPUT * n
             arr = InputArray(*inputs)
             sent = user32.SendInput(n, arr, ctypes.sizeof(INPUT))
-            return sent == n
+            if sent != n:
+                err = getattr(ctypes, "GetLastError", lambda: -1)()
+                logger.error("SendInput returned %d/%d; GetLastError=%d", sent, n, err)
+                return False
+            return True
         except Exception:
             logger.exception("SendInput error")
             return False
 
     def _clipboard_paste(self, text: str) -> bool:
-        """Write text to clipboard, send Ctrl+V, then restore previous contents.
+        """Write text to clipboard, release modifiers, send Ctrl+V, restore clipboard.
 
         Returns True if the paste likely succeeded, False otherwise.
         """
@@ -114,6 +150,9 @@ class TextInjector:
         try:
             pyperclip.copy(text)
             time.sleep(0.05)
+            # Explicitly release modifiers again right before Ctrl+V to guard
+            # against any re-assertion of Ctrl between the top-level release and here.
+            self._release_modifiers()
             self._send_ctrl_v()
             time.sleep(0.5)
             success = True

@@ -1,6 +1,7 @@
-"""Tests for injector.py — TextInjector SendInput, clipboard fallback, InjectionError."""
+"""Tests for injector.py — TextInjector clipboard paste, SendInput fallback, InjectionError."""
 
 import ctypes
+import logging
 import sys
 from unittest.mock import MagicMock, patch, call
 
@@ -56,24 +57,24 @@ def _patch_clipboard_paste_fail(injector):
 class TestInject:
     def test_empty_text_returns_true_without_any_input(self):
         inj = _make_injector()
-        inj._send_input = MagicMock()
+        inj._clipboard_paste = MagicMock()
         result = inj.inject("")
         assert result is True
-        inj._send_input.assert_not_called()
+        inj._clipboard_paste.assert_not_called()
 
-    def test_send_input_success_returns_true(self):
+    def test_clipboard_paste_success_returns_true(self):
         inj = _make_injector()
-        _patch_send_input_success(inj)
+        _patch_clipboard_paste_success(inj)
         result = inj.inject("hello")
         assert result is True
 
-    def test_send_input_fail_uses_clipboard_fallback(self):
+    def test_clipboard_paste_fail_uses_send_input_fallback(self):
         inj = _make_injector()
-        _patch_send_input_fail(inj)
-        _patch_clipboard_paste_success(inj)
+        _patch_clipboard_paste_fail(inj)
+        _patch_send_input_success(inj)
         result = inj.inject("hello")
         assert result is False
-        inj._clipboard_paste.assert_called_once_with("hello")
+        inj._send_input.assert_called_once_with("hello")
 
     def test_both_fail_raises_injection_error(self):
         inj = _make_injector()
@@ -82,12 +83,12 @@ class TestInject:
         with pytest.raises(InjectionError):
             inj.inject("hello")
 
-    def test_send_input_success_does_not_call_clipboard(self):
+    def test_clipboard_success_does_not_call_send_input(self):
         inj = _make_injector()
-        _patch_send_input_success(inj)
-        inj._clipboard_paste = MagicMock()
+        _patch_clipboard_paste_success(inj)
+        inj._send_input = MagicMock()
         inj.inject("hello")
-        inj._clipboard_paste.assert_not_called()
+        inj._send_input.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +133,47 @@ class TestSendInput:
             mock_windll.user32.SendInput.return_value = 0
             result = inj._send_input("hi")
             assert result is False
+
+    def test_send_input_logs_get_last_error_on_failure(self, caplog):
+        """When SendInput returns fewer inputs than expected, GetLastError is logged."""
+        inj = _make_injector()
+        with patch("ctypes.windll") as mock_windll, \
+             patch.object(ctypes, "GetLastError", return_value=5, create=True):
+            mock_windll.user32.SendInput.return_value = 0
+            with caplog.at_level(logging.ERROR, logger="injector"):
+                inj._send_input("x")
+            assert "GetLastError=5" in caplog.text
+
+
+# ---------------------------------------------------------------------------
+# _release_modifiers() — clears Ctrl/Space from Windows keyboard state
+# ---------------------------------------------------------------------------
+
+class TestReleaseModifiers:
+    def test_release_modifiers_does_not_raise(self):
+        """_release_modifiers() must never raise, even if windll is unavailable."""
+        inj = _make_injector()
+        with patch.object(ctypes, "windll", None, create=True):
+            inj._release_modifiers()  # should not raise
+
+    def test_release_modifiers_calls_send_input(self):
+        """_release_modifiers() must call SendInput with 2 key-up events."""
+        inj = _make_injector()
+        with patch("ctypes.windll") as mock_windll:
+            inj._release_modifiers()
+            mock_windll.user32.SendInput.assert_called_once()
+            # First arg is count — should be 2 (VK_CONTROL + VK_SPACE key-ups)
+            call_args = mock_windll.user32.SendInput.call_args
+            assert call_args[0][0] == 2
+
+    def test_inject_calls_release_modifiers_before_clipboard(self):
+        """inject() must release modifiers before attempting clipboard paste."""
+        inj = _make_injector()
+        call_order = []
+        inj._release_modifiers = MagicMock(side_effect=lambda: call_order.append("release"))
+        inj._clipboard_paste = MagicMock(side_effect=lambda t: call_order.append("clipboard") or True)
+        inj.inject("hi")
+        assert call_order.index("release") < call_order.index("clipboard")
 
 
 # ---------------------------------------------------------------------------
